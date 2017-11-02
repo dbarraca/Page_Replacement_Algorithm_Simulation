@@ -1,25 +1,25 @@
+import java.util.LinkedList;
+
 public class Process implements Comparable<Process>{
 
    private int name;
-   private int numPages;
+   private int size;
    private int arrival;
    private int duration;
+   private LinkedList<Page> pages;
 
-
-//   
-   
-   public Process(int name, int numPages, int arrival, int duration) {
+   public Process(int name, int size, int arrival, int duration) {
       this.name = name;
-      this.numPages = numPages;
+      this.size = size;
       this.arrival = arrival;
       this.duration = duration;
+      this.pages = new LinkedList<Page>();
    }
-   
 
    public String toString() {
-//      return "\nnumPages " + numPages;
+//      return "\nsize " + size;
 //      return "\nduration " + duration;
-      return "\nProcess " + name + " numPages " + numPages + " arrival " + 
+      return "\nProcess " + name + " size " + size + " arrival " + 
       arrival + " duration " + duration;
    }
    
@@ -32,5 +32,45 @@ public class Process implements Comparable<Process>{
          ret = -1;
       
       return ret;
+   }
+
+   public int getName() {
+      return name;
+   }
+
+   public void setName(int name) {
+      this.name = name;
+   }
+
+   public int getSize() {
+      return size;
+   }
+
+   public void setSize(int size) {
+      this.size = size;
+   }
+
+   public int getArrival() {
+      return arrival;
+   }
+
+   public void setArrival(int arrival) {
+      this.arrival = arrival;
+   }
+
+   public int getDuration() {
+      return duration;
+   }
+
+   public void setDuration(int duration) {
+      this.duration = duration;
+   }
+
+   public LinkedList<Page> getPages() {
+      return pages;
+   }
+
+   public void setPages(LinkedList<Page> pages) {
+      this.pages = pages;
    }
 }
