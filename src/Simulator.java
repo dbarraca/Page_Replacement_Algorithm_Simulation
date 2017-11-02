@@ -6,8 +6,8 @@ public class Simulator {
    private LinkedList<Page> pages;
    private LinkedList<Page> freePages;
    private LinkedList<Process> workLoad;
+   private LinkedList<Process> runningProcesses;
    private int sec;
-   private ArrayList<Process> runningProcesses;
    
    private static int NUM_PROCESS = 150;
    private static int MAX_ARRIVE_TIME = 60;
@@ -19,33 +19,51 @@ public class Simulator {
    
    public static void main(String args[]) {
       Simulator sim = new Simulator();
-      sim.runningProcesses = new ArrayList<Process>();
+      sim.runningProcesses = new LinkedList<Process>();
       
       sim.workLoad = sim.generateWorkLoad(NUM_PROCESS);
-//      System.out.println(processes.toString());
+      System.out.println(sim.workLoad.toString());
       
       sim.pages = sim.generatePages(NUM_PAGES);
       sim.freePages = (LinkedList<Page>)sim.pages.clone();
       
-      for (int sec = 0; sec < SEC_PER_MIN; sec++) {
-         System.out.println("Time 0:" + String.format("%02d", sec));
+      sim.sec = 0;
+      
+      while(sim.sec < SEC_PER_MIN) {
+         System.out.println("Time 0:" + String.format("%02d", sim.sec));
          if (!sim.workLoad.isEmpty()) {
                
             //Run new processes
             while (sim.freePages.size() >= MIN_FREE_PAGES && !sim.workLoad.isEmpty() &&
-                  sim.workLoad.peek().getArrival() <= sec) {
+                  sim.workLoad.peek().getArrival() <= sim.sec) {
                Process currProcess = sim.workLoad.pop();
+               currProcess.setStart(sim.sec);
                sim.runningProcesses.add(currProcess);
 
                sim.newProcessPage(currProcess);
             }
-         
-
          }
          
-         //Add new page to running processes
+         //Add new page to running processes every 100ms
          
          //Exit complete processes
+         sim.checkCompletedProcesses();
+         sim.sec++;
+      }
+   }
+   
+   private void checkCompletedProcesses() {
+      ListIterator<Process> iter = runningProcesses.listIterator();
+//      System.out.println(runningProcesses.toString());
+      
+      while (iter.hasNext()) {
+         Process currProcess = iter.next();
+         //fix this: should be when start executing + duration
+         if (currProcess.getStart() + currProcess.getDuration() <= sec) {
+            printProcessStatus(currProcess, false);
+            freePages.addAll(currProcess.getPages());
+            iter.remove();
+         }
       }
    }
    
@@ -58,7 +76,7 @@ public class Simulator {
 
       process.getPages().add(freePage);
       printProcessStatus(process, true);
-      System.out.println(process.getPages().toString());
+//      System.out.println(process.getPages().toString());
    }
    
    private void printProcessStatus(Process process, boolean isEntering) {
@@ -70,7 +88,7 @@ public class Simulator {
       System.out.println("0:" + String.format("%02d", sec) +  " Process "
             + process.getName() + enterStr + ", Size: " + 
             process.getSize() +" pages," + " Arrival: " + "0:" + 
-            String.format("%2d", process.getArrival()) + ", Duration: " 
+            String.format("%02d", process.getArrival()) + ", Duration: " 
             + process.getDuration());
    }
    

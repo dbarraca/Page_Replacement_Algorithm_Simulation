@@ -6,6 +6,7 @@ public class Process implements Comparable<Process>{
    private int size;
    private int arrival;
    private int duration;
+   private int start;
    private LinkedList<Page> pages;
 
    public Process(int name, int size, int arrival, int duration) {
@@ -19,8 +20,8 @@ public class Process implements Comparable<Process>{
    public String toString() {
 //      return "\nsize " + size;
 //      return "\nduration " + duration;
-      return "\nProcess " + name + " size " + size + " arrival " + 
-      arrival + " duration " + duration;
+      return "\nProcess " + name + " size " + size + " arrival 0:" + 
+      String.format("%02d", arrival) + " duration " + duration;
    }
    
    public int compareTo(Process process) {
@@ -64,6 +65,14 @@ public class Process implements Comparable<Process>{
 
    public void setDuration(int duration) {
       this.duration = duration;
+   }
+
+   public int getStart() {
+      return start;
+   }
+
+   public void setStart(int start) {
+      this.start = start;
    }
 
    public LinkedList<Page> getPages() {
