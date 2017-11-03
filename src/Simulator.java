@@ -30,26 +30,62 @@ public class Simulator {
       sim.sec = 0;
       
       while(sim.sec < SEC_PER_MIN) {
-         System.out.println("Time 0:" + String.format("%02d", sim.sec));
+//         System.out.println("Time 0:" + String.format("%02d", sim.sec));
          if (!sim.workLoad.isEmpty()) {
-               
             //Run new processes
-            while (sim.freePages.size() >= MIN_FREE_PAGES && !sim.workLoad.isEmpty() &&
-                  sim.workLoad.peek().getArrival() <= sim.sec) {
-               Process currProcess = sim.workLoad.pop();
-               currProcess.setStart(sim.sec);
-               sim.runningProcesses.add(currProcess);
-
-               sim.newProcessPage(currProcess);
-            }
+            sim.runNewProcesses();
          }
          
          //Add new page to running processes every 100ms
+         sim.addProcessPages();
          
          //Exit complete processes
          sim.checkCompletedProcesses();
          sim.sec++;
       }
+   }
+   
+   private void runNewProcesses() {
+      while (freePages.size() >= MIN_FREE_PAGES && !workLoad.isEmpty() &&
+            workLoad.peek().getArrival() <= sec) {
+         Process currProcess = workLoad.pop();
+         currProcess.setStart(sec);
+         runningProcesses.add(currProcess);
+         printProcessStatus(currProcess, true);
+      }
+   }
+   
+   private void addProcessPages() {
+      for (int msec = 0; msec < 1000; msec += 100) {
+
+         for (ListIterator<Process> iter = runningProcesses.listIterator(); iter.hasNext();) {
+            Process currProcess = iter.next();
+            if (currProcess.getPages().size() < currProcess.getSize()) {
+               System.out.print("0:" + String.format("%02d", sec));
+              getProcessPage(currProcess);
+            }
+         }
+      }
+   }
+   
+   private void getProcessPage(Process process) {
+      if (freePages.size() > MIN_FREE_PAGES) {
+         Page freePage = freePages.pop();
+         if (process.getPages().size() == 0)
+            freePage.setContent(0);
+         else
+            freePage.setContent(process.getPages().getLast().getContent() + 1); // increment content now, change to locality alg later
+   
+         process.getPages().add(freePage);
+         
+   //      System.out.println(process.getPages().toString());
+         System.out.println(" Process " + process.getName() + 
+          " getting Page Number " + freePage.getPageNumber() +
+          " as Page " + freePage.getContent() + " in memory with no eviction");
+      }
+//      else {
+//         Page Replacement choosing here
+//      }
    }
    
    private void checkCompletedProcesses() {
@@ -58,25 +94,12 @@ public class Simulator {
       
       while (iter.hasNext()) {
          Process currProcess = iter.next();
-         //fix this: should be when start executing + duration
          if (currProcess.getStart() + currProcess.getDuration() <= sec) {
             printProcessStatus(currProcess, false);
             freePages.addAll(currProcess.getPages());
             iter.remove();
          }
       }
-   }
-   
-   private void newProcessPage(Process process) {
-      Page freePage = freePages.pop();
-      if (process.getPages().size() == 0)
-         freePage.setContent(0);
-      else
-         freePage.setContent(process.getPages().getLast().getContent() + 1); // increment content now, change to locality alg later
-
-      process.getPages().add(freePage);
-      printProcessStatus(process, true);
-//      System.out.println(process.getPages().toString());
    }
    
    private void printProcessStatus(Process process, boolean isEntering) {
@@ -96,7 +119,7 @@ public class Simulator {
       LinkedList<Page> pages = new LinkedList<Page>();
       
       for (int i = 0; i < numPages; i++)
-         pages.add(new Page(i));
+         pages.add(new Page(-1, i));
       
       return pages;
    }
