@@ -9,6 +9,14 @@ public class Process implements Comparable<Process>{
    private int start;
    private LinkedList<Page> pages;
 
+   /**
+    * Process Constructor.  
+    * 
+    * @param name
+    * @param size
+    * @param arrival
+    * @param duration
+    */
    public Process(int name, int size, int arrival, int duration) {
       this.name = name;
       this.size = size;
@@ -17,13 +25,17 @@ public class Process implements Comparable<Process>{
       this.pages = new LinkedList<Page>();
    }
 
+   /**
+    * String format for process. Gives process ID name, size in MB, arrival time, and duration
+    */
    public String toString() {
-//      return "\nsize " + size;
-//      return "\nduration " + duration;
       return "\nProcess " + name + " size " + size + " arrival 0:" + 
       String.format("%02d", arrival) + " duration " + duration;
    }
    
+   /**
+    * Comapred process according to arrival time.
+    */
    public int compareTo(Process process) {
       int ret = 0;
       

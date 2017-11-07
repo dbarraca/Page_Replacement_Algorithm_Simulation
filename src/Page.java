@@ -5,6 +5,12 @@ public class Page {
    private int lastUsed;
    private int timesUsed;
    
+   /**
+    * Page constructor
+    * 
+    * @param content
+    * @param pageNumber
+    */
    public Page(int content, int pageNumber) {
       this.content = content;
       this.pageNumber = pageNumber;
@@ -12,10 +18,16 @@ public class Page {
       this.timesUsed = 0;
    }
    
+   /**
+    * Gives string version of page content.
+    */
    public String toString() {
       return "" + content;
    }
    
+   /**
+    * increments number of times the page was used.
+    */
    public void incrementTimesUsed() {
       this.timesUsed++;
    }
