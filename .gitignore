@@ -3,4 +3,6 @@
 Default/
 Debug/
 bin/
+*.class
 .classpath
+output.txt

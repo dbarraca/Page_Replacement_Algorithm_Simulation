@@ -2,14 +2,18 @@ import java.util.*;
 
 public class Simulator {
 
-   private Random random;
-   private LinkedList<Page> pages;
-   private LinkedList<Page> freePages;
-   private LinkedList<Process> workLoad;
-   private LinkedList<Process> runningProcesses;
+   private Random random;    // random number generator
+   private LinkedList<Page> pages;    // all pages in page number order
+   private LinkedList<Page> freePages;    // List of free pages
+   private LinkedList<Process> workLoad;    // Processes in work load
+   private LinkedList<Process> runningProcesses;    // Process currently running
    private int sec;
+   private PageReplacement currPageReplacement;
+   private float numHits;
+   private float numMisses;
+   private int numStartedProcesses;
    
-   private static int NUM_PROCESS = 10;
+   private static int NUM_PROCESS = 150;
    private static int MAX_ARRIVE_TIME = 60;
    private static int NUM_SIZES = 4;
    private static int NUM_DURATIONS = 5;
@@ -19,35 +23,79 @@ public class Simulator {
    
    public static void main(String args[]) {
       Simulator sim = new Simulator();
-      sim.runningProcesses = new LinkedList<Process>();
       
-      sim.workLoad = sim.generateWorkLoad(NUM_PROCESS);
-      System.out.println(sim.workLoad.toString());
+      sim.setUp();
+      System.out.println("Process Workload");
+      System.out.println(sim.workLoad.toString() + "\n\n");
+      sim.currPageReplacement = new FIFO();
+      sim.execute();
       
-      sim.pages = sim.generatePages(NUM_PAGES);
-      sim.freePages = (LinkedList<Page>)sim.pages.clone();
+      sim.setUp();
+      sim.currPageReplacement = new LRU(sim.pages);
+      sim.execute();
       
-      sim.sec = 0;
+      sim.setUp();
+      sim.currPageReplacement = new LFU(sim.pages);
+      sim.execute();
       
-      while(sim.sec < SEC_PER_MIN) {
-//         System.out.println("Time 0:" + String.format("%02d", sim.sec));
-         if (!sim.workLoad.isEmpty()) {
-            //Run new processes
-            sim.runNewProcesses();
-         }
-         
-         //Add new page to running processes every 100ms
-         sim.addProcessPages();
-         
-         //Exit complete processes
-         sim.checkCompletedProcesses();
-         sim.sec++;
-      }
+      sim.setUp();
+      sim.currPageReplacement = new MFU(sim.pages);
+      sim.execute();
+      
+      sim.setUp();
+      sim.currPageReplacement = new RandomPageReplacement();
+      sim.execute();
+   }
+   
+   @SuppressWarnings("unchecked")
+   private void setUp() {
+      random = new Random(1);
+      
+      runningProcesses = new LinkedList<Process>();
+      
+      workLoad = generateWorkLoad(NUM_PROCESS);
+      
+      pages = generatePages(NUM_PAGES);
+      freePages = (LinkedList<Page>)pages.clone();
+      
+      sec = 0;
+      numHits = 0 ;
+      numMisses = 0;
+      numStartedProcesses = 0;
+   }
+   
+   private void execute() throws ClassCastException{
+      System.out.println(currPageReplacement.toString());   //print type of algorithm
+      paging();
+      System.out.println("Number of Hits " + numHits);
+      System.out.println("Number of Misses " + numMisses);
+      System.out.println("Hit Ratio " + numHits / (numHits + numMisses));
+      System.out.println("Miss Ratio " + numMisses / (numHits + numMisses));
+      System.out.println("Number of Started Process " + numStartedProcesses);
+
+      System.out.println("\n\n");
+   }
+   
+   private void paging() {
+      while(sec < SEC_PER_MIN) {
+       if (!workLoad.isEmpty()) {
+          //Run new processes
+          runNewProcesses();
+       }
+       
+       //Add new page to running processes every 100ms
+       addProcessPages();
+       
+       //Exit complete processes
+      checkCompletedProcesses();
+       sec++;
+    }
    }
    
    private void runNewProcesses() {
       while (freePages.size() >= MIN_FREE_PAGES && !workLoad.isEmpty() &&
             workLoad.peek().getArrival() <= sec) {
+         numStartedProcesses++;
          Process currProcess = workLoad.pop();
          currProcess.setStart(sec);
          runningProcesses.add(currProcess);
@@ -60,7 +108,7 @@ public class Simulator {
          for (ListIterator<Process> iter = runningProcesses.listIterator(); iter.hasNext();) {
             Process currProcess = iter.next();
             if (currProcess.getPages().size() < currProcess.getSize()) {
-               System.out.print("0:" + String.format("%02d", sec));
+
               retrievePage(currProcess);
             }
          }
@@ -68,56 +116,63 @@ public class Simulator {
    }
    
    private void retrievePage(Process process) {
+      Page retrievedPage;
+      System.out.print("0:" + String.format("%02d", sec));
+      
       if (!freePages.isEmpty()) {
-         Page freePage = freePages.pop();
-         if (process.getPages().size() == 0)
-            freePage.setContent(0);
-         else
-            freePage.setContent(localityOfRef(process)); // increment content now, change to locality alg later
-   
-         process.getPages().add(freePage);
-         
-   //      System.out.println(process.getPages().toString());
-         System.out.println(" Process " + process.getName() + 
-          " getting Page Number " + freePage.getPageNumber() +
-          " as Page " + freePage.getContent() + " in memory with no eviction");
-//         System.out.println("Number of free pages = " + freePages.size());
+         retrievedPage = freePages.pop();
 
+         if (process.getPages().size() == 0)
+            retrievedPage.setContent(0);
+         else
+            retrievedPage.setContent(localityOfRef(process)); 
+         
+         process.getPages().add(retrievedPage);
+         numHits++;
+
+         System.out.println(" Process " + process.getName() + 
+          " getting Page Number " + retrievedPage.getPageNumber() + " as Page "
+          + retrievedPage.getContent() + " with no eviction");
       }
       else {
-//         Page Replacement choosing here
-         System.out.println(" Page Replacement here");
+         int evictingPageNumber = currPageReplacement.pageEviction();
+         retrievedPage = pages.get(evictingPageNumber);
+         Process evictedFrom = evictPage(retrievedPage);
+         int oldContent = retrievedPage.getContent();
+
+         if (process.getPages().size() == 0)
+            retrievedPage.setContent(0);
+         else
+            retrievedPage.setContent(localityOfRef(process)); 
+         
+         process.getPages().add(retrievedPage);
+         numMisses++;
+
+         System.out.println(" Process " + process.getName() + 
+          " getting Page Number " + retrievedPage.getPageNumber() + " as Page "
+          + retrievedPage.getContent() + " evicting from Process " + 
+          evictedFrom.getName() + " Page " + oldContent);
       }
+      
+      retrievedPage.incrementTimesUsed();
+      retrievedPage.setLastUsed(sec);
    }
    
-//   private void retrievePage(Process process) {
-//      Page retrievedPage;
-//      boolean evicted;
-//      
-//      if (freePages.size() > MIN_FREE_PAGES) {
-//         retrievedPage = freePages.pop();
-//         evicted = false;
-//         
-//
-//      }
-//      else {
-//         evicted = true;
-////         Page Replacement choosing here
-//         System.out.println(" Page Replacement here");
-//      }
-//      
-//      if (process.getPages().size() == 0)
-//         retrievedPage.setContent(0);
-//      else
-//         retrievedPage.setContent(localityOfRef(process));
-//
-//      process.getPages().add(retrievedPage);
-//      
-//      //      System.out.println(process.getPages().toString());
-//      System.out.println(" Process " + process.getName() + 
-//       " getting Page Number " + retrievedPage.getPageNumber() +
-//       " as Page " + retrievedPage.getContent() + " in memory with no eviction");
-//   }
+   private Process evictPage(Page toFind) {
+      ListIterator<Process> iter = runningProcesses.listIterator();
+      Process evictedFrom = null;
+      
+      while (iter.hasNext()) {
+         Process currProcess = iter.next();
+        
+         if(currProcess.getPages().contains(toFind)) {
+            currProcess.getPages().remove(currProcess.getPages().indexOf(toFind));
+            evictedFrom = currProcess;
+         }
+      }
+      
+      return evictedFrom;
+   }
    
    private int localityOfRef(Process process) {
       int newPageContent = process.getPages().getLast().getContent();
@@ -155,33 +210,30 @@ public class Simulator {
    
    private void checkCompletedProcesses() {
       ListIterator<Process> iter = runningProcesses.listIterator();
-//      System.out.println(runningProcesses.toString());
       
       while (iter.hasNext()) {
          Process currProcess = iter.next();
          if (currProcess.getStart() + currProcess.getDuration() <= sec) {
             printProcessStatus(currProcess, false);
-//            System.out.println("Process " + currProcess.getName() + currProcess.getPages());
             freePages.addAll(currProcess.getPages());
-            System.out.println("Number of free pages = " + freePages.size());
             iter.remove();
          }
       }
-      
-      
    }
    
    private void printProcessStatus(Process process, boolean isEntering) {
-      String enterStr = " Entering";
+      String enterStr = " Enter";
       
       if (!isEntering)
-         enterStr = " Exiting";
+         enterStr = " Exit";
       
-      System.out.println("0:" + String.format("%02d", sec) +  " Process "
+      System.out.print("0:" + String.format("%02d", sec) +  " Process "
             + process.getName() + enterStr + ", Size: " + 
             process.getSize() +" pages," + " Arrival: " + "0:" + 
             String.format("%02d", process.getArrival()) + ", Duration: " 
-            + process.getDuration());
+            + process.getDuration() + "  ");
+      
+      printMemoryMap();
    }
    
    private LinkedList<Page> generatePages(int numPages) {
@@ -193,9 +245,35 @@ public class Simulator {
       return pages;
    }
    
+   private void printMemoryMap() {
+      ListIterator<Process> iter = runningProcesses.listIterator();
+      int memMap[] = new int[NUM_PAGES];
+      
+      for (int currPageNumber = 0; currPageNumber < NUM_PAGES; currPageNumber++) {
+         memMap[currPageNumber] = -1;
+      }
+            
+      while(iter.hasNext()) {
+         Process currProcess = iter.next();
+         
+         for (Page currPage : currProcess.getPages()) {
+            memMap[currPage.getPageNumber()] = currProcess.getName();
+         }
+      }
+      
+      System.out.print("<");
+      for (int currPageNumber = 0; currPageNumber < NUM_PAGES; currPageNumber++) {
+         if (memMap[currPageNumber] == -1) 
+            System.out.print(". ");
+         else
+            System.out.print("" + memMap[currPageNumber] + " ");
+      }
+      System.out.println(">");
+   }
+   
    public LinkedList<Process> generateWorkLoad(int numProcess) {
       LinkedList<Process> workLoad = new LinkedList<Process>();
-      random = new Random(1);
+
       int durations[] = distributeParam(numProcess, NUM_DURATIONS);
       int sizes[] = distributeParam(numProcess, NUM_SIZES);
       
